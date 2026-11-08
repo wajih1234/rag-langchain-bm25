@@ -7,13 +7,14 @@ import streamlit as st
 from ingest import load_file, split_docs
 from embd import build_vectorstore
 from retrievers import build_hybrid_retriever
-from rag import build_chain
+from rag import ask
+from monitoring import get_stats
 
 st.set_page_config(page_title="RAG Chat", layout="wide")
 
 
 def new_conv():
-    return {"title": "New chat", "messages": [], "chain": None, "key": None, "n_chunks": 0}
+    return {"title": "New chat", "messages": [],"retriever": None, "key": None, "n_chunks": 0}
 
 
 if "convs" not in st.session_state:
@@ -52,24 +53,31 @@ with st.sidebar:
 
             chunks = split_docs(docs)
             vs = build_vectorstore(chunks)
-            conv["chain"] = build_chain(build_hybrid_retriever(chunks, vs))
+            conv["retriever"] = build_hybrid_retriever(chunks, vs)
             conv["n_chunks"] = len(chunks)
             conv["key"] = key
             conv["messages"] = []
 
-    if conv["chain"]:
+    if conv["retriever"]:
         st.success(f"{conv['n_chunks']} chunks ready")
 
-    st.header("Conversations")
+        st.header("Conversations")
     for cid, c in convs.items():
         label = ("▶ " if cid == cur else "") + c["title"]
         if st.button(label, key=f"btn_{cid}", use_container_width=True):
             st.session_state.cur = cid
             st.rerun()
 
+    st.header("Monitoring")
+    stats = get_stats()
+    if stats:
+        st.metric("Questions", stats["total"])
+        st.metric("Avg latency (s)", stats["avg_latency"])
+        st.metric("Errors", stats["errors"])
+
 st.title("RAG Chat")
 
-if conv["chain"] is None:
+if conv["retriever"]  is None:
     st.info("Upload a file in the sidebar to start chatting.")
     st.stop()
 
@@ -82,7 +90,7 @@ if question := st.chat_input("Ask a question about your files"):
         st.write(question)
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
-            answer = conv["chain"].invoke(question)
+            answer, docs = ask(conv["retriever"], question)
         st.write(answer)
     if not conv["messages"]:
         conv["title"] = question[:30]
