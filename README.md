@@ -92,7 +92,16 @@ python retrievers.py   # chunks returned for a question
 python llm.py          # test the LLM connection
 python rag.py          # full answer from the chain
 ```
+## Monitoring
 
+Every question is logged to `logs/queries.jsonl` (question, answer, retrieved chunks, latency, errors). The sidebar shows the number of questions, the average latency and the error count.
+
+## Evaluation (RAGAS)
+
+python eval_run.py     # runs the questions in eval_questions.json and saves eval_data.json
+python eval_score.py   # scores them with RAGAS: faithfulness, answer relevancy, context precision
+
+Needs `ragas==0.4.3` and `langchain-community==0.4.1`.
 ## Limitations
 
 - Conversations are kept in the browser session: a page refresh erases them
